@@ -1,9 +1,4 @@
 .cache/
-*.o
-*.a
-*.so
-*.exe
-guariteiro
 compile_commands.json
 .vscode/
 .vs/
