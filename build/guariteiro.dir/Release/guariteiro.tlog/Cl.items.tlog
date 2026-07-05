@@ -1,0 +1,10 @@
+D:\Repositorios\vigia-main\src\core\Game.cpp;D:\Repositorios\vigia-main\build\guariteiro.dir\Release\Game.obj
+D:\Repositorios\vigia-main\src\core\InputManager.cpp;D:\Repositorios\vigia-main\build\guariteiro.dir\Release\InputManager.obj
+D:\Repositorios\vigia-main\src\core\Mesh.cpp;D:\Repositorios\vigia-main\build\guariteiro.dir\Release\Mesh.obj
+D:\Repositorios\vigia-main\src\core\Model.cpp;D:\Repositorios\vigia-main\build\guariteiro.dir\Release\Model.obj
+D:\Repositorios\vigia-main\src\core\Renderer.cpp;D:\Repositorios\vigia-main\build\guariteiro.dir\Release\Renderer.obj
+D:\Repositorios\vigia-main\src\core\Shader.cpp;D:\Repositorios\vigia-main\build\guariteiro.dir\Release\Shader.obj
+D:\Repositorios\vigia-main\src\core\TextureCache.cpp;D:\Repositorios\vigia-main\build\guariteiro.dir\Release\TextureCache.obj
+D:\Repositorios\vigia-main\src\entities\Player.cpp;D:\Repositorios\vigia-main\build\guariteiro.dir\Release\Player.obj
+D:\Repositorios\vigia-main\src\main.cpp;D:\Repositorios\vigia-main\build\guariteiro.dir\Release\main.obj
+D:\Repositorios\vigia-main\src\systems\SceneManager.cpp;D:\Repositorios\vigia-main\build\guariteiro.dir\Release\SceneManager.obj
