@@ -145,7 +145,6 @@ void Renderer::renderScene(SceneManager& scene, Shader& shader) {
     for (const auto& obj : scene.getObjects()) {
         if (!obj->active) continue;
 
-        std::cout << "[DEBUG] Rendering: " << obj->name << std::endl;
 
         if (!obj->textureName.empty())
             glBindTexture(GL_TEXTURE_2D, TextureCache::get(obj->textureName));

@@ -51,16 +51,16 @@ add_custom_command(TARGET guariteiro POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${VCPKG_BIN}/glfw3.dll" $<TARGET_FILE_DIR:guariteiro>
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${VCPKG_BIN_DBG}/assimp-vc145-mtd.dll" $<TARGET_FILE_DIR:guariteiro>
+        "${VCPKG_BIN}/assimp-vc143-mt.dll" $<TARGET_FILE_DIR:guariteiro>
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${VCPKG_BIN_DBG}/poly2tri.dll" $<TARGET_FILE_DIR:guariteiro>
+        "${VCPKG_BIN}/poly2tri.dll" $<TARGET_FILE_DIR:guariteiro>
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${VCPKG_BIN_DBG}/kubazip.dll" $<TARGET_FILE_DIR:guariteiro>
+        "${VCPKG_BIN}/kubazip.dll" $<TARGET_FILE_DIR:guariteiro>
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${VCPKG_BIN_DBG}/minizipd.dll" $<TARGET_FILE_DIR:guariteiro>
+        "${VCPKG_BIN}/minizip.dll" $<TARGET_FILE_DIR:guariteiro>
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${VCPKG_BIN_DBG}/pugixml.dll" $<TARGET_FILE_DIR:guariteiro>
+        "${VCPKG_BIN}/pugixml.dll" $<TARGET_FILE_DIR:guariteiro>
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${VCPKG_BIN_DBG}/zd.dll" $<TARGET_FILE_DIR:guariteiro>
+        "${VCPKG_BIN}/z.dll" $<TARGET_FILE_DIR:guariteiro>
     COMMENT "Copiando shaders, assets e DLLs..."
 )

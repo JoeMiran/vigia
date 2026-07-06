@@ -1,6 +1,6 @@
-^D:\REPOSITORIOS\VIGIA-MAIN\CMAKELISTS.TXT
+^C:\USERS\JOEL MIRANDA\DESKTOP\VIGIA\CMAKELISTS.TXT
 setlocal
-D:\Programas\Cmake\bin\cmake.exe -SD:/Repositorios/vigia-main -BD:/Repositorios/vigia-main/build --check-stamp-file D:/Repositorios/vigia-main/build/CMakeFiles/generate.stamp
+"C:\Users\Joel Miranda\cmake\cmake-4.3.4-windows-x86_64\bin\cmake.exe" "-SC:/Users/Joel Miranda/Desktop/vigia" "-BC:/Users/Joel Miranda/Desktop/vigia/build" --check-stamp-file "C:/Users/Joel Miranda/Desktop/vigia/build/CMakeFiles/generate.stamp"
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone

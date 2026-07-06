@@ -22,6 +22,12 @@ void SceneManager::loadScene(const std::string& name) {
 
 void SceneManager::update(float dt) {
     m_player->update(dt);
+    m_creature.setFlashlightInfo(
+        m_player->camera.getFlashlightPos(),
+        m_player->camera.getFlashlightDir(),
+        m_player->camera.flashlightOn
+    );
+    m_creature.update(dt);
     for (auto& obj : m_objects)
         if (obj->active) obj->update(dt);
 }
@@ -358,4 +364,20 @@ void SceneManager::buildGuaritaScene() {
     // Player — Yaw 90° para já nascer olhando para a porta (parede Sul)
     m_player->camera.Position = vec3(0.0f, 1.7f, 1.5f);
     m_player->camera.Yaw      = 90.0f;
+
+    buildCreature();
+}
+
+void SceneManager::buildCreature() {
+    m_creature.setForestCenter(glm::vec3(0.0f));
+    auto parts = m_creature.buildBody();
+    std::vector<GameObject*> rawPtrs;
+    for (auto& part : parts) {
+        part->active = false;
+        GameObject* ptr = part.get();
+        addObject(std::move(part));
+        rawPtrs.push_back(ptr);
+    }
+    m_creature.attachBodyParts(rawPtrs);
+    m_creature.active = true;
 }

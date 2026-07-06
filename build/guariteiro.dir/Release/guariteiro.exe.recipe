@@ -2,10 +2,10 @@
 <Project>
   <ProjectOutputs>
     <ProjectOutput>
-      <FullPath>D:\Repositorios\vigia-main\build\x64\Release\ZERO_CHECK</FullPath>
+      <FullPath>C:\Users\Joel Miranda\Desktop\vigia\build\x64\Release\ZERO_CHECK</FullPath>
     </ProjectOutput>
     <ProjectOutput>
-      <FullPath>D:\Repositorios\vigia-main\build\Release\guariteiro.exe</FullPath>
+      <FullPath>C:\Users\Joel Miranda\Desktop\vigia\build\Release\guariteiro.exe</FullPath>
     </ProjectOutput>
   </ProjectOutputs>
   <ContentFiles />
