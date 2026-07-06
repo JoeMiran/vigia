@@ -19,6 +19,8 @@ public:
     const std::vector<std::unique_ptr<GameObject>>& getObjects() const { return m_objects; }
 
     void addObject(std::unique_ptr<GameObject> obj);
+    float getGameTime() const { return m_gameTime; }
+    bool isGameOver() const { return m_gameOver; }
 
 private:
     void buildGuaritaScene();
@@ -29,4 +31,6 @@ private:
     Creature m_creature;
     std::vector<std::unique_ptr<GameObject>> m_objects;
     std::string m_currentScene;
+    float m_gameTime = 0.0f;
+    bool m_gameOver = false;
 };

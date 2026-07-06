@@ -2,6 +2,7 @@
 #include "core/Mesh.h"
 #include "core/Model.h"
 #include "core/TextureCache.h"
+#include "core/InputManager.h"
 #include <iostream>
 #include <cmath>
 #include <random>
@@ -21,13 +22,27 @@ void SceneManager::loadScene(const std::string& name) {
 }
 
 void SceneManager::update(float dt) {
+    m_gameTime += dt;
+
+    auto& input = InputManager::get();
+    bool moving = input.isKeyPressed(GLFW_KEY_W) ||
+                  input.isKeyPressed(GLFW_KEY_S) ||
+                  input.isKeyPressed(GLFW_KEY_A) ||
+                  input.isKeyPressed(GLFW_KEY_D);
+
     m_player->update(dt);
     m_creature.setFlashlightInfo(
         m_player->camera.getFlashlightPos(),
         m_player->camera.getFlashlightDir(),
         m_player->camera.flashlightOn
     );
+    m_creature.setGameTime(m_gameTime);
+    m_creature.setPlayerMoving(moving);
+    m_creature.setPlayerPos(m_player->camera.Position);
     m_creature.update(dt);
+    if (m_creature.isGameOver())
+        m_gameOver = true;
+
     for (auto& obj : m_objects)
         if (obj->active) obj->update(dt);
 }
@@ -263,9 +278,9 @@ void SceneManager::buildGuaritaScene() {
     // ══════════════════════════════════════════════
     //  ÁREA EXTERNA (floresta noturna macabra)
     // ══════════════════════════════════════════════
-    TextureCache::makeColor("trunk_brown",   24, 14,  5);
-    TextureCache::makeColor("foliage_dark",  4, 10,  3);
-    TextureCache::makeColor("moon_glow",    200, 190, 160);
+    TextureCache::makeColor("trunk_brown",   12, 7,  3);
+    TextureCache::makeColor("foliage_dark",  1, 5,  1);
+    TextureCache::makeColor("moon_glow",    100, 90, 80);
 
     // Chão externo — Y=-1 para evitar z-fighting com piso da sala
     {
@@ -286,19 +301,20 @@ void SceneManager::buildGuaritaScene() {
     // Distribuídas em anéis com espaçamento angular uniforme + jitter
     struct TreeDef { float x, z; float h; float rot; };
     std::vector<TreeDef> procTrees;
-    procTrees.reserve(54);
+    procTrees.reserve(70);
 
     float ringData[][3] = {
-        { 7.5f,  9.0f, 10 },
-        { 10.0f, 12.0f, 12 },
-        { 14.0f, 16.0f, 12 },
-        { 18.0f, 20.0f, 10 },
-        { 23.0f, 25.0f,  6 },
-        { 29.0f, 32.0f,  4 },
+        { 6.0f,  8.0f, 10 },
+        { 9.0f,  11.0f, 12 },
+        { 13.0f, 15.0f, 12 },
+        { 17.0f, 19.0f, 10 },
+        { 22.0f, 24.0f, 8 },
+        { 28.0f, 31.0f, 6 },
+        { 35.0f, 38.0f, 5 },
     };
-    unsigned int seeds[] = { 137, 256, 789, 1024, 5555, 9999 };
+    unsigned int seeds[] = { 137, 256, 789, 1024, 5555, 9999, 7777 };
 
-    for (int ring = 0; ring < 6; ring++) {
+    for (int ring = 0; ring < 7; ring++) {
         rngSeed = seeds[ring];
         float minD = ringData[ring][0];
         float maxD = ringData[ring][1];
@@ -310,7 +326,7 @@ void SceneManager::buildGuaritaScene() {
             float dist = minD + rng() * (maxD - minD);
             procTrees.push_back({
                 cosf(ang) * dist, sinf(ang) * dist,
-                10.0f + rng() * 8.0f,
+                15.0f + rng() * 15.0f,
                 rng() * 6.2831853f
             });
         }
@@ -325,7 +341,7 @@ void SceneManager::buildGuaritaScene() {
             trunk.position   = vec3(t.x, 0, t.z);
             trunk.rotation.y = t.rot;
             trunk.mesh = std::make_unique<Mesh>(Mesh::createTaperedCylinder(trunkR, trunkR * 0.25f, trunkH));
-            trunk.textureName = "trunk_brown";
+            trunk.textureName = "tree.jpg";
         }
         {
             auto& crown = make(std::make_unique<GameObject>("Crown"));

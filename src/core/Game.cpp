@@ -75,13 +75,16 @@ void Game::processInput() {
 }
 
 void Game::update() {
-    if (m_state == GameState::PLAYING)
+    if (m_state == GameState::PLAYING) {
         m_scene->update(m_deltaTime);
+        if (m_scene->isGameOver()) {
+            m_state = GameState::GAME_OVER;
+            std::cout << "[Game] GAME OVER\n";
+        }
+    }
 }
 
 void Game::render() {
-    glClearColor(0.02f, 0.02f, 0.06f, 1.0f); // céu noturno profundo
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     m_renderer->render(*m_scene);
 }
 

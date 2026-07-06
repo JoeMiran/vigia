@@ -6,8 +6,10 @@
 #include "systems/SceneManager.h"
 #include "entities/Player.h"
 #include "entities/GameObject.h"
+#include "entities/Creature.h"
 #include <iostream>
 #include <vector>
+#include <cmath>
 #include "core/TextureCache.h"
 
 static unsigned int createVAO(const std::vector<Vertex>& verts, const std::vector<unsigned int>& indices) {
@@ -101,6 +103,7 @@ Renderer::Renderer(int width, int height)
     : m_width(width), m_height(height)
 {
     m_sceneShader = std::make_unique<Shader>("shaders/scene_vertex.glsl", "shaders/scene_fragment.glsl");
+    m_screenShader = std::make_unique<Shader>("shaders/screen_vertex.glsl", "shaders/screen_fragment.glsl");
 
     buildCubeMesh(m_cubeVAO, m_cubeCount);
     buildPlaneMesh(m_planeVAO, m_planeCount);
@@ -113,6 +116,30 @@ Renderer::Renderer(int width, int height)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glBindTexture(GL_TEXTURE_2D, 0);
 
+    m_jumpscareTexture = createJumpscareTexture();
+
+    // Full-screen quad VAO
+    float quadVerts[] = {
+        -1.0f,  1.0f, 0.0f, 1.0f,
+        -1.0f, -1.0f, 0.0f, 0.0f,
+         1.0f, -1.0f, 1.0f, 0.0f,
+
+        -1.0f,  1.0f, 0.0f, 1.0f,
+         1.0f, -1.0f, 1.0f, 0.0f,
+         1.0f,  1.0f, 1.0f, 1.0f,
+    };
+    glGenVertexArrays(1, &m_fullscreenVAO);
+    unsigned int fsVBO;
+    glGenBuffers(1, &fsVBO);
+    glBindVertexArray(m_fullscreenVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, fsVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVerts), quadVerts, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glBindVertexArray(0);
+
     std::cout << "[Renderer] Inicializado\n";
 }
 
@@ -120,15 +147,41 @@ Renderer::~Renderer() {
     if (m_cubeVAO) glDeleteVertexArrays(1, &m_cubeVAO);
     if (m_planeVAO) glDeleteVertexArrays(1, &m_planeVAO);
     if (m_defaultTexture) glDeleteTextures(1, &m_defaultTexture);
+    if (m_jumpscareTexture) glDeleteTextures(1, &m_jumpscareTexture);
+    if (m_fullscreenVAO) glDeleteVertexArrays(1, &m_fullscreenVAO);
 }
 
 void Renderer::render(SceneManager& scene) {
     renderScene(scene, *m_sceneShader);
+
+    if (scene.getCreature().isJumpscareActive()) {
+        renderJumpscare();
+    }
 }
 
 void Renderer::renderScene(SceneManager& scene, Shader& shader) {
     const auto& game = Game::get();
     const auto& camera = scene.getPlayer().camera;
+
+    float gameTime = scene.getGameTime();
+    float dayFactor = glm::clamp(gameTime / 300.0f, 0.0f, 1.0f);
+
+    glm::vec3 nightAmbient(0.01f, 0.01f, 0.02f);
+    glm::vec3 dayAmbient(0.15f, 0.18f, 0.22f);
+    glm::vec3 ambientColor = glm::mix(nightAmbient, dayAmbient, dayFactor * dayFactor);
+
+    glm::vec3 nightFog(0.003f, 0.005f, 0.015f);
+    glm::vec3 dayFog(0.2f, 0.2f, 0.2f);
+    glm::vec3 fogColor = glm::mix(nightFog, dayFog, dayFactor);
+
+    float fogDensity = glm::mix(0.065f, 0.015f, dayFactor);
+
+    glm::vec3 nightClear(0.005f, 0.005f, 0.015f);
+    glm::vec3 dayClear(0.2f, 0.22f, 0.25f);
+    glm::vec3 clearColor = glm::mix(nightClear, dayClear, dayFactor);
+
+    glClearColor(clearColor.r, clearColor.g, clearColor.b, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glm::mat4 projection = glm::perspective(glm::radians(camera.Fov),
                                             (float)m_width / (float)m_height, 0.1f, 100.0f);
@@ -138,13 +191,17 @@ void Renderer::renderScene(SceneManager& scene, Shader& shader) {
     shader.setMat4("view", camera.getViewMatrix());
     shader.setVec3("viewPos", camera.Position);
 
+    shader.setVec3("ambientLight.color", ambientColor);
+    shader.setFloat("ambientLight.intensity", glm::mix(0.03f, 0.3f, dayFactor * dayFactor));
+    shader.setFloat("fogDensity", fogDensity);
+    shader.setVec3("fogColor", fogColor);
+
     setupLighting(shader, scene);
 
     glActiveTexture(GL_TEXTURE0);
 
     for (const auto& obj : scene.getObjects()) {
         if (!obj->active) continue;
-
 
         if (!obj->textureName.empty())
             glBindTexture(GL_TEXTURE_2D, TextureCache::get(obj->textureName));
@@ -157,7 +214,6 @@ void Renderer::renderScene(SceneManager& scene, Shader& shader) {
 
         if (obj->model) {
             shader.setVec2("uvScale", glm::vec2(1.0f));
-            std::cout << "[DEBUG] model->draw(" << (obj->textureName.empty() && obj->model->hasPerMeshTextures()) << ")" << std::endl;
             obj->model->draw(obj->textureName.empty() && obj->model->hasPerMeshTextures());
             continue;
         }
@@ -168,10 +224,9 @@ void Renderer::renderScene(SceneManager& scene, Shader& shader) {
             continue;
         }
 
-        unsigned int vao = (obj->name == "Floor") ? m_planeVAO : m_cubeVAO;
-        int count = (obj->name == "Floor") ? m_planeCount : m_cubeCount;
+        unsigned int vao = (obj->name == "Floor" || obj->name == "GroundOutside") ? m_planeVAO : m_cubeVAO;
+        int count = (obj->name == "Floor" || obj->name == "GroundOutside") ? m_planeCount : m_cubeCount;
 
-        // ← tiling reduzido pela metade (estava 6x6=36 repetições, agora 3x3)
         float s = glm::max(obj->scale.x, glm::max(obj->scale.y, obj->scale.z));
         shader.setVec2("uvScale", glm::vec2(s / 2.0f));
         glBindVertexArray(vao);
@@ -190,11 +245,11 @@ void Renderer::setupLighting(Shader& shader, SceneManager& scene) {
     shader.setFloat("flashlight.innerCutOff", glm::cos(glm::radians(camera.flashInnerCut)));
     shader.setFloat("flashlight.outerCutOff", glm::cos(glm::radians(camera.flashOuterCut)));
     shader.setFloat("flashlight.constant",  1.0f);
-    shader.setFloat("flashlight.linear",    0.09f);
-    shader.setFloat("flashlight.quadratic", 0.032f);
+    shader.setFloat("flashlight.linear",    0.025f);
+    shader.setFloat("flashlight.quadratic", 0.008f);
     shader.setVec3("flashlight.ambient",  glm::vec3(0.0f));
-    shader.setVec3("flashlight.diffuse",  glm::vec3(0.9f, 0.88f, 0.75f));
-    shader.setVec3("flashlight.specular", glm::vec3(0.4f));
+    shader.setVec3("flashlight.diffuse",  glm::vec3(1.6f, 1.55f, 1.3f));
+    shader.setVec3("flashlight.specular", glm::vec3(0.6f));
     shader.setBool("flashlight.on", camera.flashlightOn);
 
     glm::vec3 lampPositions[4] = {
@@ -212,10 +267,85 @@ void Renderer::setupLighting(Shader& shader, SceneManager& scene) {
         shader.setFloat(prefix + ".linear",    0.27f);
         shader.setFloat(prefix + ".quadratic", 0.12f);
     }
+}
 
-    shader.setVec3 ("ambientLight.color",     glm::vec3(0.03f, 0.04f, 0.08f));
-    shader.setFloat("ambientLight.intensity", 0.08f);
+void Renderer::renderJumpscare() {
+    glDisable(GL_DEPTH_TEST);
+    glClear(GL_DEPTH_BUFFER_BIT);
 
-    shader.setFloat("fogDensity", 0.045f);
-    shader.setVec3 ("fogColor",   glm::vec3(0.01f, 0.015f, 0.04f));
+    m_screenShader->use();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, m_jumpscareTexture);
+    m_screenShader->setInt("screenTexture", 0);
+
+    glBindVertexArray(m_fullscreenVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+
+    glEnable(GL_DEPTH_TEST);
+}
+
+unsigned int Renderer::createJumpscareTexture() {
+    const int W = 256, H = 256;
+    std::vector<unsigned char> pixels(W * H * 4);
+
+    for (int y = 0; y < H; y++) {
+        for (int x = 0; x < W; x++) {
+            float nx = (float)x / W * 2.0f - 1.0f;
+            float ny = (float)y / H * 2.0f - 1.0f;
+
+            float bright = 0.0f;
+
+            // Large bloodshot eyes
+            float eyeL = glm::length(glm::vec2(nx + 0.35f, ny + 0.05f));
+            float eyeR = glm::length(glm::vec2(nx - 0.35f, ny + 0.05f));
+            if (eyeL < 0.18f || eyeR < 0.18f) {
+                float r = eyeL < 0.18f ? eyeL : eyeR;
+                if (r < 0.07f) {
+                    bright = 1.0f;
+                } else if (r < 0.14f) {
+                    bright = 0.0f;
+                } else {
+                    bright = 0.3f;
+                }
+            }
+
+            // Wide open mouth (scream)
+            float mx = nx;
+            float my = ny + 0.45f;
+            float mouthDist = glm::length(glm::vec2(mx * 1.3f, my));
+            if (mouthDist < 0.25f) {
+                float blackDist = glm::length(glm::vec2(mx * 1.3f, my));
+                if (blackDist < 0.2f) {
+                    bright = 0.0f;
+                } else {
+                    bright = 0.8f;
+                }
+            }
+
+            // Dark red background
+            float r = 0.3f + bright * 0.7f;
+            float g = 0.02f + bright * 0.05f;
+            float b = 0.02f + bright * 0.05f;
+
+            int idx = (y * W + x) * 4;
+            pixels[idx + 0] = (unsigned char)(std::min(r, 1.0f) * 255);
+            pixels[idx + 1] = (unsigned char)(std::min(g, 1.0f) * 255);
+            pixels[idx + 2] = (unsigned char)(std::min(b, 1.0f) * 255);
+            pixels[idx + 3] = 255;
+        }
+    }
+
+    unsigned int tex;
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, W, H, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    std::cout << "[Renderer] Jumpscare texture created\n";
+    return tex;
 }

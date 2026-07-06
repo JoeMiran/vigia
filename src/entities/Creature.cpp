@@ -4,50 +4,59 @@
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
+#include <algorithm>
 
 Creature::Creature() : GameObject("Creature") {
-    active = false; // not rendered directly, parts are rendered
+    active = false;
 }
 
 std::vector<std::unique_ptr<GameObject>> Creature::buildBody() {
     std::vector<std::unique_ptr<GameObject>> parts;
-    TextureCache::makeColor("creature_skin", 255, 255, 255);
+    TextureCache::makeColor("creature_skin", 10, 10, 12);
+    TextureCache::makeColor("creature_eye", 200, 5, 5);
 
-    // Head: small sphere at top
     auto head = std::make_unique<GameObject>("CreatureHead");
     head->mesh = std::make_unique<Mesh>(Mesh::createSphere(0.15f, 8, 8));
     head->textureName = "creature_skin";
     parts.push_back(std::move(head));
 
-    // Body/torso: thin tall box
     auto body = std::make_unique<GameObject>("CreatureBody");
     body->mesh = std::make_unique<Mesh>(Mesh::createBox(0.35f, 1.0f, 0.18f));
     body->textureName = "creature_skin";
     parts.push_back(std::move(body));
 
-    // Left arm: thin cylinder from shoulder down
     auto lArm = std::make_unique<GameObject>("CreatureLArm");
     lArm->mesh = std::make_unique<Mesh>(Mesh::createCylinder(0.03f, 1.1f, 6));
     lArm->textureName = "creature_skin";
     parts.push_back(std::move(lArm));
 
-    // Right arm
     auto rArm = std::make_unique<GameObject>("CreatureRArm");
     rArm->mesh = std::make_unique<Mesh>(Mesh::createCylinder(0.03f, 1.1f, 6));
     rArm->textureName = "creature_skin";
     parts.push_back(std::move(rArm));
 
-    // Left leg: very long thin cylinder
     auto lLeg = std::make_unique<GameObject>("CreatureLLeg");
     lLeg->mesh = std::make_unique<Mesh>(Mesh::createCylinder(0.04f, 1.6f, 6));
     lLeg->textureName = "creature_skin";
     parts.push_back(std::move(lLeg));
 
-    // Right leg
     auto rLeg = std::make_unique<GameObject>("CreatureRLeg");
     rLeg->mesh = std::make_unique<Mesh>(Mesh::createCylinder(0.04f, 1.6f, 6));
     rLeg->textureName = "creature_skin";
     parts.push_back(std::move(rLeg));
+
+    {
+        auto eyeL = std::make_unique<GameObject>("CreatureEyeL");
+        eyeL->mesh = std::make_unique<Mesh>(Mesh::createSphere(0.035f, 6, 6));
+        eyeL->textureName = "creature_eye";
+        parts.push_back(std::move(eyeL));
+    }
+    {
+        auto eyeR = std::make_unique<GameObject>("CreatureEyeR");
+        eyeR->mesh = std::make_unique<Mesh>(Mesh::createSphere(0.035f, 6, 6));
+        eyeR->textureName = "creature_eye";
+        parts.push_back(std::move(eyeR));
+    }
 
     return parts;
 }
@@ -61,18 +70,31 @@ void Creature::setFlashlightInfo(const glm::vec3& pos, const glm::vec3& dir, boo
 void Creature::update(float dt) {
     if (!active) return;
     m_animTime += dt;
+    updatePhase();
 
     switch (m_state) {
     case HIDDEN: {
         m_hiddenTimer -= dt;
         if (m_hiddenTimer <= 0.0f) {
-            choosePosition();
-            m_visibleTimer = 0.0f;
-            m_timeInLight = 0.0f;
-            m_wasEverLit = false;
-            m_proximityPenaltyApplied = false;
-            setPartsVisible(true);
-            m_state = VISIBLE;
+            if (m_currentRadius <= 0.0f) {
+                m_entryStart = glm::vec3(-2.6f, 0.0f, 3.0f);
+                m_entryEnd = glm::vec3(0.0f, 0.0f, 1.5f);
+                m_entryTimer = 0.0f;
+                m_currentPos = m_entryStart;
+                setPartsVisible(true);
+                m_state = ENTERING;
+                std::cout << "[Creature] ENTERING THE ROOM!\n";
+            } else {
+                choosePosition();
+                m_visibleTimer = 0.0f;
+                m_timeInLight = 0.0f;
+                m_lightTeleportTimer = 0.0f;
+                m_graceTimer = 0.5f;
+                m_foundThisCycle = false;
+                setPartsVisible(true);
+                m_state = VISIBLE;
+                std::cout << "[Creature] Appeared at radius " << m_currentRadius << "\n";
+            }
         }
         updateTransforms();
         break;
@@ -82,128 +104,163 @@ void Creature::update(float dt) {
         bool hit = m_flashOn && isFlashlightOnCreature();
 
         if (hit) {
-            if (!m_wasEverLit) {
-                m_wasEverLit = true;
-                if (m_visibleTimer >= 5.0f && !m_proximityPenaltyApplied) {
-                    advanceProximity();
-                    m_proximityPenaltyApplied = true;
-                }
+            if (!m_foundThisCycle) {
+                m_foundThisCycle = true;
+                std::cout << "[Creature] Found!\n";
             }
             m_timeInLight += dt;
-            if (m_timeInLight >= 10.0f) {
-                setPartsVisible(false);
-                m_disappearTimer = 5.0f;
-                m_proximityLevel++;
-                m_state = DISAPPEARED;
+            m_lightTeleportTimer += dt;
+            m_graceTimer = 0.5f;
+
+            if (m_lightTeleportTimer >= 10.0f) {
+                choosePosition();
+                m_lightTeleportTimer = 0.0f;
             }
         } else {
             m_timeInLight = 0.0f;
-            if (m_visibleTimer >= 30.0f) {
-                setPartsVisible(false);
-                m_disappearTimer = 5.0f;
-                m_state = DISAPPEARED;
+
+            if (m_foundThisCycle) {
+                m_graceTimer -= dt;
+                if (m_graceTimer <= 0.0f) {
+                    m_currentRadius = std::max(0.0f, m_currentRadius - m_cycleAdvance);
+                    setPartsVisible(false);
+                    if (m_currentRadius <= 0.0f) {
+                        m_entryStart = glm::vec3(-2.6f, 0.0f, 3.0f);
+                        m_entryEnd = glm::vec3(0.0f, 0.0f, 1.5f);
+                        m_entryTimer = 0.0f;
+                        m_currentPos = m_entryStart;
+                        setPartsVisible(true);
+                        m_state = ENTERING;
+                        std::cout << "[Creature] REACHED THE DOOR!\n";
+                    } else {
+                        m_hiddenTimer = m_hiddenDuration;
+                        m_state = HIDDEN;
+                        std::cout << "[Creature] Gone, radius " << m_currentRadius << "\n";
+                    }
+                }
+            } else {
+                m_lightTeleportTimer = 0.0f;
+                if (m_visibleTimer >= m_findTimeLimit) {
+                    m_currentRadius = std::max(0.0f, m_currentRadius - 1.0f);
+                    setPartsVisible(false);
+                    if (m_currentRadius <= 0.0f) {
+                        m_entryStart = glm::vec3(-2.6f, 0.0f, 3.0f);
+                        m_entryEnd = glm::vec3(0.0f, 0.0f, 1.5f);
+                        m_entryTimer = 0.0f;
+                        m_currentPos = m_entryStart;
+                        setPartsVisible(true);
+                        m_state = ENTERING;
+                        std::cout << "[Creature] REACHED THE DOOR (penalty)!\n";
+                    } else {
+                        m_hiddenTimer = m_hiddenDuration;
+                        m_state = HIDDEN;
+                        std::cout << "[Creature] Not found, radius " << m_currentRadius << "\n";
+                    }
+                }
             }
         }
         updateTransforms();
         break;
     }
-    case STUNNED: {
-        // Kept for compatibility, but merged into VISIBLE logic
-        break;
-    }
-    case DISAPPEARED: {
-        m_disappearTimer -= dt;
-        if (m_disappearTimer <= 0.0f) {
-            m_hiddenTimer = 8.0f + (float)(rand() % 7000) / 1000.0f;
-            m_state = HIDDEN;
-        }
+    case ENTERING: {
+        m_entryTimer += dt;
+        float t = std::min(m_entryTimer / 1.5f, 1.0f);
+        float smooth = t * t * (3.0f - 2.0f * t);
+        m_currentPos = glm::mix(m_entryStart, m_entryEnd, smooth);
+
         updateTransforms();
+
+        if (m_playerMoving || t >= 1.0f) {
+            std::cout << "[Creature] Jumpscare triggered!\n";
+            m_currentPos = m_entryEnd;
+            updateTransforms();
+            m_jumpscareTimer = 2.0f;
+            m_state = JUMPSCARE;
+        }
         break;
     }
+    case JUMPSCARE: {
+        m_jumpscareTimer -= dt;
+        if (m_jumpscareTimer <= 0.0f) {
+            m_gameOver = true;
+        }
+        break;
+    }
+    }
+}
+
+void Creature::updatePhase() {
+    if (m_gameTime >= 90.0f) {
+        m_hiddenDuration = 4.0f;
+        m_findTimeLimit = 3.0f;
+        m_cycleAdvance = 0.5f;
+    } else {
+        m_hiddenDuration = 8.0f;
+        m_findTimeLimit = 4.0f;
+        m_cycleAdvance = 0.3f;
     }
 }
 
 void Creature::choosePosition() {
-    // Pick random position in forest tree rings
-    // Rings: { minDist, maxDist, count }
-    float ringData[][2] = {
-        {7.5f, 9.0f},
-        {10.0f, 12.0f},
-        {14.0f, 16.0f},
-        {18.0f, 20.0f},
-        {23.0f, 25.0f},
-        {29.0f, 32.0f},
-    };
-    // Proximity level reduces which rings are available
-    int ringIdx = std::min(m_proximityLevel, 3);
-    // Add random jitter within level
-    ringIdx = std::max(0, ringIdx + (rand() % 3 - 1));
-    ringIdx = std::min(ringIdx, 4);
-
-    float minD = ringData[ringIdx][0];
-    float maxD = ringData[ringIdx][1];
-
     float ang = (float)(rand() % 6283) / 1000.0f;
-    float dist = minD + (float)(rand() % 10000) / 10000.0f * (maxD - minD);
-
+    float dist = m_currentRadius;
     m_currentPos = m_forestCenter + glm::vec3(cosf(ang) * dist, 0.0f, sinf(ang) * dist);
-
-    std::cout << "[Creature] Spawned at (" << m_currentPos.x << ", " << m_currentPos.z
-              << "), level=" << m_proximityLevel << "\n";
 }
 
 void Creature::updateTransforms() {
-    // Animate with two sine waves for unnatural jitter
     float t1 = m_animTime * 1.3f;
     float t2 = m_animTime * 0.7f + 1.0f;
-
-    // Overall body sway
     float sway = sinf(t1 * 0.5f) * 0.03f;
 
-    if (m_bodyParts.size() < 6) return;
+    if (m_bodyParts.size() < 8) return;
 
-    // Body parts indices: 0=head, 1=body, 2=lArm, 3=rArm, 4=lLeg, 5=rLeg
-    // Head
+    float headBob = sinf(t2 * 2.0f) * 0.02f;
+    glm::vec3 headPos = m_currentPos + glm::vec3(0.0f, 2.85f + headBob, 0.0f);
+
     {
         auto& p = *m_bodyParts[0];
-        float bob = sinf(t2 * 2.0f) * 0.02f;
-        p.position = m_currentPos + glm::vec3(0.0f, 2.85f + bob, 0.0f);
+        p.position = headPos;
         p.rotation = glm::vec3(sinf(t1 * 1.1f) * 2.0f, 0.0f, sway * 5.0f);
     }
-    // Body
     {
         auto& p = *m_bodyParts[1];
         float bob = sinf(t2 * 1.5f) * 0.015f;
         p.position = m_currentPos + glm::vec3(0.0f, 2.05f + bob, 0.0f);
         p.rotation = glm::vec3(sinf(t1 * 0.9f) * 1.0f, 0.0f, sway * 3.0f);
     }
-    // Left arm
     {
         auto& p = *m_bodyParts[2];
         float armSwing = sinf(t1 * 1.7f) * 8.0f + 5.0f;
         p.position = m_currentPos + glm::vec3(-0.25f, 2.0f, 0.0f);
         p.rotation = glm::vec3(armSwing + sinf(t2 * 2.3f) * 3.0f, 0.0f, sway * 8.0f);
     }
-    // Right arm
     {
         auto& p = *m_bodyParts[3];
         float armSwing = sinf(t1 * 1.7f + 3.14f) * 8.0f + 5.0f;
         p.position = m_currentPos + glm::vec3(0.25f, 2.0f, 0.0f);
         p.rotation = glm::vec3(armSwing + sinf(t2 * 2.3f + 1.0f) * 3.0f, 0.0f, -sway * 8.0f);
     }
-    // Left leg
     {
         auto& p = *m_bodyParts[4];
         float legSwing = sinf(t1 * 1.5f) * 2.0f;
         p.position = m_currentPos + glm::vec3(-0.12f, 0.8f, 0.0f);
         p.rotation = glm::vec3(legSwing + sinf(t2 * 0.5f) * 1.0f, 0.0f, sway * 2.0f);
     }
-    // Right leg
     {
         auto& p = *m_bodyParts[5];
         float legSwing = sinf(t1 * 1.5f + 3.14f) * 2.0f;
         p.position = m_currentPos + glm::vec3(0.12f, 0.8f, 0.0f);
         p.rotation = glm::vec3(legSwing + sinf(t2 * 0.5f + 1.0f) * 1.0f, 0.0f, -sway * 2.0f);
+    }
+    {
+        auto& p = *m_bodyParts[6];
+        p.position = headPos + glm::vec3(-0.09f, 0.02f, 0.13f);
+        p.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+    }
+    {
+        auto& p = *m_bodyParts[7];
+        p.position = headPos + glm::vec3(0.09f, 0.02f, 0.13f);
+        p.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
     }
 }
 
@@ -211,24 +268,12 @@ bool Creature::isFlashlightOnCreature() const {
     glm::vec3 toCreature = m_currentPos - m_flashPos;
     float dist = glm::length(toCreature);
     if (dist < 0.001f) return false;
-    // Max flashlight range ~35 units
     if (dist > 35.0f) return false;
     toCreature /= dist;
 
     float cosAngle = glm::dot(toCreature, m_flashDir);
-    float outerCut = cosf(glm::radians(25.0f)); // flashOuterCut
+    float outerCut = cosf(glm::radians(25.0f));
     return cosAngle >= outerCut;
-}
-
-void Creature::advanceProximity() {
-    m_proximityLevel++;
-    std::cout << "[Creature] Proximity increased to " << m_proximityLevel << "\n";
-    // Move closer immediately
-    float ang = atan2f(m_currentPos.z - m_forestCenter.z, m_currentPos.x - m_forestCenter.x);
-    float currentDist = glm::length(glm::vec2(m_currentPos.x - m_forestCenter.x, m_currentPos.z - m_forestCenter.z));
-    float newDist = currentDist * 0.7f;
-    newDist = std::max(newDist, 3.5f);
-    m_currentPos = m_forestCenter + glm::vec3(cosf(ang) * newDist, 0.0f, sinf(ang) * newDist);
 }
 
 void Creature::setPartsVisible(bool v) {

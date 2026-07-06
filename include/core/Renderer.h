@@ -14,6 +14,8 @@ public:
 private:
     void renderScene(SceneManager& scene, Shader& shader);
     void setupLighting(Shader& shader, SceneManager& scene);
+    void renderJumpscare();
+    unsigned int createJumpscareTexture();
 
     int m_width, m_height;
 
@@ -23,6 +25,10 @@ private:
     int          m_planeCount = 0;
     unsigned int m_defaultTexture = 0;
 
+    unsigned int m_jumpscareTexture = 0;
+    unsigned int m_fullscreenVAO = 0;
+
     std::unique_ptr<Shader> m_sceneShader;
     std::unique_ptr<Shader> m_lightShader;
+    std::unique_ptr<Shader> m_screenShader;
 };
