@@ -308,19 +308,23 @@ void Renderer::setupLighting(Shader& shader, SceneManager& scene) {
 }
 
 void Renderer::renderJumpscare() {
-    glDisable(GL_DEPTH_TEST);
-    glClear(GL_DEPTH_BUFFER_BIT);
+    glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
 
+    if (!m_screenShader || !m_screenShader->ID) return;
     m_screenShader->use();
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, m_jumpscareTexture);
     m_screenShader->setInt("screenTexture", 0);
 
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, m_jumpscareTexture);
+
+    glDisable(GL_DEPTH_TEST);
     glBindVertexArray(m_fullscreenVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);
-
     glEnable(GL_DEPTH_TEST);
+
+    std::cout << "[Renderer] Jumpscare rendered (shader ID=" << m_screenShader->ID << ")\n";
 }
 
 unsigned int Renderer::createJumpscareTexture() {
@@ -332,44 +336,51 @@ unsigned int Renderer::createJumpscareTexture() {
             float nx = (float)x / W * 2.0f - 1.0f;
             float ny = (float)y / H * 2.0f - 1.0f;
 
-            float bright = 0.0f;
+            unsigned char r = 0, g = 0, b = 0;
 
-            // Large bloodshot eyes
+            // Large white eyes with black pupils
             float eyeL = glm::length(glm::vec2(nx + 0.35f, ny + 0.05f));
             float eyeR = glm::length(glm::vec2(nx - 0.35f, ny + 0.05f));
-            if (eyeL < 0.18f || eyeR < 0.18f) {
-                float r = eyeL < 0.18f ? eyeL : eyeR;
-                if (r < 0.07f) {
-                    bright = 1.0f;
-                } else if (r < 0.14f) {
-                    bright = 0.0f;
-                } else {
-                    bright = 0.3f;
-                }
+            bool inEye = eyeL < 0.18f || eyeR < 0.18f;
+            float rd = eyeL < 0.18f ? eyeL : eyeR;
+
+            if (inEye && rd < 0.07f) {
+                // pupil — bright white
+                r = 255; g = 255; b = 255;
+            } else if (inEye && rd < 0.18f) {
+                // sclera — white with red veins
+                float t = (rd - 0.07f) / 0.11f;
+                r = (unsigned char)(200 + 55 * (1 - t));
+                g = (unsigned char)(30 * (1 - t));
+                b = (unsigned char)(30 * (1 - t));
             }
 
-            // Wide open mouth (scream)
+            // Wide open mouth (dark hole with teeth outline)
             float mx = nx;
             float my = ny + 0.45f;
             float mouthDist = glm::length(glm::vec2(mx * 1.3f, my));
             if (mouthDist < 0.25f) {
-                float blackDist = glm::length(glm::vec2(mx * 1.3f, my));
-                if (blackDist < 0.2f) {
-                    bright = 0.0f;
+                if (mouthDist > 0.20f) {
+                    // teeth outline — white
+                    r = 255; g = 255; b = 255;
                 } else {
-                    bright = 0.8f;
+                    // mouth interior — black
+                    r = 0; g = 0; b = 0;
                 }
             }
 
-            // Dark red background
-            float r = 0.3f + bright * 0.7f;
-            float g = 0.02f + bright * 0.05f;
-            float b = 0.02f + bright * 0.05f;
+            // Dark red glow behind everything
+            if (!inEye && mouthDist >= 0.25f) {
+                float glow = 0.3f + 0.2f * (1.0f - glm::length(glm::vec2(nx, ny)));
+                r = (unsigned char)(glow * 180);
+                g = (unsigned char)(glow * 10);
+                b = (unsigned char)(glow * 10);
+            }
 
             int idx = (y * W + x) * 4;
-            pixels[idx + 0] = (unsigned char)(std::min(r, 1.0f) * 255);
-            pixels[idx + 1] = (unsigned char)(std::min(g, 1.0f) * 255);
-            pixels[idx + 2] = (unsigned char)(std::min(b, 1.0f) * 255);
+            pixels[idx + 0] = r;
+            pixels[idx + 1] = g;
+            pixels[idx + 2] = b;
             pixels[idx + 3] = 255;
         }
     }
@@ -378,12 +389,12 @@ unsigned int Renderer::createJumpscareTexture() {
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D, tex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, W, H, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    std::cout << "[Renderer] Jumpscare texture created\n";
+    std::cout << "[Renderer] Jumpscare texture created (bright version)\n";
     return tex;
 }
