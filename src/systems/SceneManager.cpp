@@ -24,12 +24,6 @@ void SceneManager::loadScene(const std::string& name) {
 void SceneManager::update(float dt) {
     m_gameTime += dt;
 
-    auto& input = InputManager::get();
-    bool moving = input.isKeyPressed(GLFW_KEY_W) ||
-                  input.isKeyPressed(GLFW_KEY_S) ||
-                  input.isKeyPressed(GLFW_KEY_A) ||
-                  input.isKeyPressed(GLFW_KEY_D);
-
     m_player->update(dt);
     m_creature.setFlashlightInfo(
         m_player->camera.getFlashlightPos(),
@@ -37,11 +31,16 @@ void SceneManager::update(float dt) {
         m_player->camera.flashlightOn
     );
     m_creature.setGameTime(m_gameTime);
-    m_creature.setPlayerMoving(moving);
     m_creature.setPlayerPos(m_player->camera.Position);
     m_creature.update(dt);
     if (m_creature.isGameOver())
         m_gameOver = true;
+
+    if (!m_gameOver && m_gameTime >= 180.0f) {
+        m_survived = true;
+        m_gameOver = true;
+        std::cout << "[Scene] VOCE SOBREVIVEU ATE O AMANHECER!\n";
+    }
 
     for (auto& obj : m_objects)
         if (obj->active) obj->update(dt);

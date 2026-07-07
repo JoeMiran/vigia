@@ -8,6 +8,7 @@
 class Renderer;
 class InputManager;
 class SceneManager;
+class AudioManager;
 
 // ─── Estados do jogo ──────────────────────────────────────────────
 enum class GameState {
@@ -53,4 +54,5 @@ private:
     std::unique_ptr<Renderer>     m_renderer;
     std::unique_ptr<InputManager> m_input;
     std::unique_ptr<SceneManager> m_scene;
+    std::unique_ptr<AudioManager> m_audio;
 };

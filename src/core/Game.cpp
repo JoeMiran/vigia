@@ -1,8 +1,10 @@
 #include "core/Game.h"
 #include "core/Renderer.h"
 #include "core/InputManager.h"
+#include "core/AudioManager.h"
 #include "systems/SceneManager.h"
 #include <iostream>
+#include <cmath>
 
 Game* Game::s_instance = nullptr;
 
@@ -23,7 +25,11 @@ bool Game::init(const std::string& title, int width, int height) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    m_window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+    m_width = mode->width;
+    m_height = mode->height;
+    m_window = glfwCreateWindow(m_width, m_height, title.c_str(), monitor, nullptr);
     if (!m_window) {
         std::cerr << "[Game] Falha ao criar janela\n";
         return false;
@@ -37,14 +43,25 @@ bool Game::init(const std::string& title, int width, int height) {
         return false;
     }
 
-    glViewport(0, 0, width, height);
+    glViewport(0, 0, m_width, m_height);
     glEnable(GL_DEPTH_TEST);
 
     // ── Subsistemas ───────────────────────────────────────────────
     m_input    = std::make_unique<InputManager>(m_window);
-    m_renderer = std::make_unique<Renderer>(width, height);
+    m_renderer = std::make_unique<Renderer>(m_width, m_height);
     m_scene    = std::make_unique<SceneManager>();
     m_scene->loadScene("night_shift"); // cena inicial
+
+    // ── Audio ──────────────────────────────────────────────────────
+    m_audio = std::make_unique<AudioManager>();
+    if (m_audio->init()) {
+        const std::string musicPath = "assets/audio/soundtrack.mp3";
+        if (m_audio->playMusic(musicPath, true)) {
+            m_audio->setMusicVolume(0.5f);
+        } else {
+            std::cerr << "[Game] Aviso: arquivo de audio nao encontrado: " << musicPath << "\n";
+        }
+    }
 
     m_state = GameState::PLAYING;
     std::cout << "[Game] Iniciado com sucesso\n";
@@ -79,7 +96,11 @@ void Game::update() {
         m_scene->update(m_deltaTime);
         if (m_scene->isGameOver()) {
             m_state = GameState::GAME_OVER;
-            std::cout << "[Game] GAME OVER\n";
+            if (m_scene->isSurvived()) {
+                std::cout << "[Game] VOCE SOBREVIVEU ATE O AMANHECER!\n";
+            } else {
+                std::cout << "[Game] GAME OVER\n";
+            }
         }
     }
 }
@@ -89,5 +110,6 @@ void Game::render() {
 }
 
 void Game::shutdown() {
+    if (m_audio) m_audio->shutdown();
     glfwTerminate();
 }

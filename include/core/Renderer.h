@@ -1,8 +1,10 @@
 #pragma once
 #include <memory>
+#include <string>
 
 class SceneManager;
 class Shader;
+class TextRenderer;
 
 class Renderer {
 public:
@@ -10,6 +12,7 @@ public:
     ~Renderer();
 
     void render(SceneManager& scene);
+    void renderTimer(SceneManager& scene, float gameTime);
 
 private:
     void renderScene(SceneManager& scene, Shader& shader);
@@ -31,4 +34,6 @@ private:
     std::unique_ptr<Shader> m_sceneShader;
     std::unique_ptr<Shader> m_lightShader;
     std::unique_ptr<Shader> m_screenShader;
+
+    std::unique_ptr<TextRenderer> m_textRenderer;
 };

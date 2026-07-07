@@ -21,6 +21,8 @@ public:
     void addObject(std::unique_ptr<GameObject> obj);
     float getGameTime() const { return m_gameTime; }
     bool isGameOver() const { return m_gameOver; }
+    bool isSurvived() const { return m_survived; }
+    bool isLightsOut() const { return m_creature.isLightsOut(); }
 
 private:
     void buildGuaritaScene();
@@ -33,4 +35,5 @@ private:
     std::string m_currentScene;
     float m_gameTime = 0.0f;
     bool m_gameOver = false;
+    bool m_survived = false;
 };

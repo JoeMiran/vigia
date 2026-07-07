@@ -1,9 +1,11 @@
+C:\Users\Joel Miranda\Desktop\vigia\src\core\AudioManager.cpp;C:\Users\Joel Miranda\Desktop\vigia\build\guariteiro.dir\Release\AudioManager.obj
 C:\Users\Joel Miranda\Desktop\vigia\src\core\Game.cpp;C:\Users\Joel Miranda\Desktop\vigia\build\guariteiro.dir\Release\Game.obj
 C:\Users\Joel Miranda\Desktop\vigia\src\core\InputManager.cpp;C:\Users\Joel Miranda\Desktop\vigia\build\guariteiro.dir\Release\InputManager.obj
 C:\Users\Joel Miranda\Desktop\vigia\src\core\Mesh.cpp;C:\Users\Joel Miranda\Desktop\vigia\build\guariteiro.dir\Release\Mesh.obj
 C:\Users\Joel Miranda\Desktop\vigia\src\core\Model.cpp;C:\Users\Joel Miranda\Desktop\vigia\build\guariteiro.dir\Release\Model.obj
 C:\Users\Joel Miranda\Desktop\vigia\src\core\Renderer.cpp;C:\Users\Joel Miranda\Desktop\vigia\build\guariteiro.dir\Release\Renderer.obj
 C:\Users\Joel Miranda\Desktop\vigia\src\core\Shader.cpp;C:\Users\Joel Miranda\Desktop\vigia\build\guariteiro.dir\Release\Shader.obj
+C:\Users\Joel Miranda\Desktop\vigia\src\core\TextRenderer.cpp;C:\Users\Joel Miranda\Desktop\vigia\build\guariteiro.dir\Release\TextRenderer.obj
 C:\Users\Joel Miranda\Desktop\vigia\src\core\TextureCache.cpp;C:\Users\Joel Miranda\Desktop\vigia\build\guariteiro.dir\Release\TextureCache.obj
 C:\Users\Joel Miranda\Desktop\vigia\src\entities\Creature.cpp;C:\Users\Joel Miranda\Desktop\vigia\build\guariteiro.dir\Release\Creature.obj
 C:\Users\Joel Miranda\Desktop\vigia\src\entities\Player.cpp;C:\Users\Joel Miranda\Desktop\vigia\build\guariteiro.dir\Release\Player.obj

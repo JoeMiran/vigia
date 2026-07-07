@@ -3,6 +3,7 @@
 #include "core/Camera.h"
 #include "core/Game.h"
 #include "core/Mesh.h"
+#include "core/TextRenderer.h"
 #include "systems/SceneManager.h"
 #include "entities/Player.h"
 #include "entities/GameObject.h"
@@ -10,6 +11,8 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
+#include <sstream>
+#include <iomanip>
 #include "core/TextureCache.h"
 
 static unsigned int createVAO(const std::vector<Vertex>& verts, const std::vector<unsigned int>& indices) {
@@ -140,6 +143,8 @@ Renderer::Renderer(int width, int height)
     glEnableVertexAttribArray(1);
     glBindVertexArray(0);
 
+    m_textRenderer = std::make_unique<TextRenderer>(m_width, m_height);
+
     std::cout << "[Renderer] Inicializado\n";
 }
 
@@ -152,11 +157,44 @@ Renderer::~Renderer() {
 }
 
 void Renderer::render(SceneManager& scene) {
-    renderScene(scene, *m_sceneShader);
+    if (scene.isGameOver()) {
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        return;
+    }
+
+    if (scene.isLightsOut()) {
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    } else {
+        renderScene(scene, *m_sceneShader);
+    }
 
     if (scene.getCreature().isJumpscareActive()) {
         renderJumpscare();
     }
+
+    renderTimer(scene, scene.getGameTime());
+}
+
+void Renderer::renderTimer(SceneManager& scene, float gameTime) {
+    if (!m_textRenderer) return;
+    if (scene.isLightsOut()) return;
+
+    float totalGameMinutes = 180.0f + gameTime;
+
+    int hours = (int)(totalGameMinutes / 60.0f);
+    int mins = (int)totalGameMinutes % 60;
+
+    std::ostringstream ss;
+    ss << std::setw(2) << std::setfill('0') << hours << ":"
+       << std::setw(2) << std::setfill('0') << mins;
+
+    float scale = 6.0f;
+    float textW = 5.0f * 8.0f * scale;
+    float x = (m_width - textW) * 0.5f;
+    float y = 10.0f;
+    m_textRenderer->renderText(ss.str(), x, y, scale, glm::vec3(1.0f, 0.1f, 0.05f));
 }
 
 void Renderer::renderScene(SceneManager& scene, Shader& shader) {
